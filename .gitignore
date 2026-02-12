@@ -1,1 +1,7 @@
 node_modules/
+
+## ignores private key directory*
+private_keys/
+
+##* except for the .gitkeep, which preserves structure for key storage
+!private_keys/.gitkeep
