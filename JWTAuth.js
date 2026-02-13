@@ -9,7 +9,7 @@ async function signJWT(payload = {username: 'test'}) {
 		throw new Error('No valid keys available for signing');
 	}
 
-	privKey = validKeys[0]; // if there are keys select first one
+	privKey = validKeys[0].privateKey; // if there are keys select first one
 
 	const options = {
 		algorithm: 'RS256',
@@ -22,3 +22,8 @@ async function signJWT(payload = {username: 'test'}) {
 
 	return JWT;
 }
+
+// export function
+module.exports = {
+	signJWT
+};
