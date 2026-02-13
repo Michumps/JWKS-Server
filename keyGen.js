@@ -155,4 +155,11 @@ async function genAndStoreKeys() {
 		}
 	}
 
-	cleanExpiredKeys();
+	// exports functions to be used in other files
+	module.exports = {
+		initStorage,
+		genAndStoreKeys,
+		loadKeys,
+		loadExpKeys,
+		cleanExpiredKeys
+	};
