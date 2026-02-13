@@ -32,8 +32,6 @@ async function genAndStoreKeys() {
 	const kid = Date.now(); // timestamp for kid
 	const exp = Math.floor((Date.now() / 1000) + 3600); // expiry set to one hour (for now)
 
-	console.log(`kid ${kid} and exp ${exp} successfully created`);
-
 	const metadata = {
 		kid,
 		exp,
@@ -53,4 +51,44 @@ async function genAndStoreKeys() {
 	return {kid, privateKey, publicKey, exp};
 };
 
-genAndStoreKeys();
+	async function loadKeys() {
+		const currentTime = Math.floor((Date.now() / 1000));
+		const validKeys = [];
+
+		try {
+			const keyDir = await fs.readdir(KEY_DIR); //  reads content of private_keys directory
+
+			// checks metadata for each key and compares with current time to see if expired
+			for (const files of keyDir) {
+				if (files.endsWith('.json')) {
+					const metaPath = path.join(KEY_DIR, files);
+					const metaContent = await fs.readFile(metaPath, 'utf-8');
+					const metadata = JSON.parse(metaContent);
+
+					// if key is not expired, push to validKeys with kid and exp.
+					if (metadata.exp > currentTime) {
+						const keyPath = path.join(KEY_DIR, `key_${metadata.kid}.pem`);
+						const privateKey = await fs.readFile(keyPath, 'utf-8');
+
+						validKeys.push({
+							kid: metadata.kid,
+							privateKey,
+							exp: metadata.exp
+						});
+
+					} else {
+						console.log(`TEST; expired key with kid: ${metadata.kid} expired at ${metadata.exp}`);
+					}
+				}
+			}
+		} catch (err) {
+			console.error("Error loading keys: ", err);
+		}
+
+		return validKeys;
+	}
+
+	loadKeys().then(validKeys => {
+		console.log(validKeys)
+	}); // TEMP OUTPUT TESTING
+ 
