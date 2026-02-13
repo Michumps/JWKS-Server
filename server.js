@@ -12,7 +12,13 @@ app.post('/auth', async (req, res) => {
 	await genAndStoreKeys(); // temp for testing
 
 	try {
-		const JWT = await signJWT();
+		const expired = req.query.expired === 'true'; // checks if user wants expired key sign
+
+		const payload = {
+			user: 'test'
+		};
+
+		const JWT = await signJWT(payload, expired);
 
 		res.json({JWT}); // respond with signed JWT
 	} catch (err) {
