@@ -76,8 +76,6 @@ async function genAndStoreKeys() {
 							exp: metadata.exp
 						});
 
-					} else {
-						console.log(`TEST; expired key with kid: ${metadata.kid} expired at ${metadata.exp}`);
 					}
 				}
 			}
@@ -87,11 +85,6 @@ async function genAndStoreKeys() {
 
 		return validKeys;
 	}
-
-	loadKeys().then(validKeys => {
-		console.log(validKeys)
-	}); // TEMP OUTPUT TESTING
- 
 
 		async function loadExpKeys() {
 		const currentTime = Math.floor((Date.now() / 1000));
@@ -128,6 +121,38 @@ async function genAndStoreKeys() {
 		return expiredKeys;
 	}
 
-	loadExpKeys().then(expiredKeys => {
-		console.log(expiredKeys);
-	}) // TEMP OUTPUT TESTING
+	async function cleanExpiredKeys() {
+		const currentTime = Date.now();
+		let deletedKeys = 0;
+
+		try {
+			const keyDir = await fs.readdir(KEY_DIR); //  reads content of private_keys directory
+
+			// checks metadata for each key and compares with current time to see if expired
+			for (const files of keyDir) {
+				if (files.endsWith('.json')) {
+					const metaPath = path.join(KEY_DIR, files);
+					const metaContent = await fs.readFile(metaPath, 'utf-8');
+					const metadata = JSON.parse(metaContent);
+
+					// if key is expired, delete key and metadata files from the private_keys directory
+					if (metadata.exp < currentTime) {
+						const keyPath = path.join(KEY_DIR, `key_${metadata.kid}.pem`);
+
+						await fs.unlink(metaPath);
+						await fs.unlink(keyPath);
+
+						console.log(`Deleted expired key with kid: ${metadata.kid}`);
+						deletedKeys ++;
+					}
+				}
+			}
+
+			if (deletedKeys > 0) console.log(`Successfully deleted ${deletedKeys} expired keys`);
+
+		} catch (err) {
+			console.error("Error loading keys: ", err);
+		}
+	}
+
+	cleanExpiredKeys();
