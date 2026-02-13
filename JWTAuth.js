@@ -10,10 +10,11 @@ async function signJWT(payload = {username: 'test'}) {
 	}
 
 	privKey = validKeys[0].privateKey; // if there are keys select first one
+	kid = validKeys[0].kid; // kid for priv key
 
 	const options = {
 		algorithm: 'RS256',
-		keyid: privKey.kid.toString(),
+		keyid: kid.toString(),
 		expiresIn: "1h",
 	}
 
