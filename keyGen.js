@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const KEY_DIR = path.join(__dirname, 'private_keys'); // path to private_keys
+const KEY_EXP = 2; // explicit key expiry (in hours)
 
 // Ensures that private_keys is initialized, even if removed before program start
 async function initStorage() {
@@ -30,7 +31,7 @@ async function genAndStoreKeys() {
 	}, (err, publicKey, privateKey) => {});
 
 	const kid = Date.now(); // timestamp for kid
-	const exp = Math.floor((Date.now() / 1000) + 3600); // expiry set to one hour (for now)
+	const exp = Math.floor((Date.now() / 1000) + (KEY_EXP * 3600)); // expiry set based on KEY_EXP
 
 	const metadata = {
 		kid,
