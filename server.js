@@ -2,12 +2,22 @@ const express = require('express');
 const app = express();
 const port = 8080;
 const jwt = require('jsonwebtoken')
+const {signJWT} = require('./JWTAuth');
+const {genAndStoreKeys} = require('./keyGen');
 
-app.post('/auth', (req, res) => {
+app.use(express.json()); // middleware to allow JSON data
 
-	req.body = {};
+app.post('/auth', async (req, res) => {
 
-	res.send(req.body);
+	await genAndStoreKeys(); // temp for testing
+
+	try {
+		const JWT = await signJWT();
+
+		res.json({JWT}); // respond with signed JWT
+	} catch (err) {
+		console.error('Failed to sign JWT', err);
+	}
 
 });
 
