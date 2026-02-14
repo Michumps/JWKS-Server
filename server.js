@@ -21,7 +21,8 @@ app.post('/auth', async (req, res) => {
 
 		const JWT = await signJWT(payload, expired);
 
-		res.json({JWT}); // respond with signed JWT
+		res.status(200).json({JWT}); // respond with signed JWT
+		
 	} catch (err) {
 		console.error('Failed to sign JWT', err);
 	}
@@ -55,7 +56,7 @@ app.get('/.well-known/jwks.json', async (req, res) => {
 			};
 		});
 
-		res.json({keys: JWKS}); // return all keys in JWK format
+		res.status(200).json({keys: JWKS}); // return all keys in JWK format
 
 	} catch (err) {
 		// send error response if some failure happens
