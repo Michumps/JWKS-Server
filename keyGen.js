@@ -17,7 +17,7 @@ async function initStorage() {
 }
 
 // Creates an RSA priv/pub key pair, to be used to sign JWTs
-async function genAndStoreKeys() {
+async function genAndStoreKeys(genExpired = 1) {
 	const {publicKey, privateKey} = crypto.generateKeyPairSync('rsa', {
 		modulusLength: 2048,
 		publicKeyEncoding: {
@@ -31,7 +31,7 @@ async function genAndStoreKeys() {
 	}, (err, publicKey, privateKey) => {});
 
 	const kid = Date.now(); // timestamp for kid
-	const exp = Math.floor((Date.now() / 1000) + (KEY_EXP * 3600)); // expiry set based on KEY_EXP
+	const exp = Math.floor((Date.now() / 1000) + ((KEY_EXP * 3600) * genExpired)); // expiry set based on KEY_EXP and genExpired
 
 	const metadata = {
 		kid,
