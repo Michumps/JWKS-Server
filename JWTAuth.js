@@ -1,20 +1,26 @@
 const jwt = require('jsonwebtoken');
-const {loadKeys, loadExpKeys} = require('./keyGen');
+const {loadKeys, loadExpKeys, genAndStoreKeys} = require('./keyGen');
 
 async function signJWT(payload, expired = false) {
 	let keys;
 	let JWTexpiry;
 
 	if (expired) {
-		const expKeys = await loadExpKeys();
+		// check for expired keys, if there is none generate one
+		await loadExpKeys().then(async expKeys => {
+			if (expKeys.length === 0) await genAndStoreKeys(-1);
+		});
 
-		// check if there are expired keys
-		if (expKeys.length === 0) throw new Error("No expired keys available for signing");
+		const expKeys = await loadExpKeys(); // should always have exp key
 
 		keys = expKeys;
 		JWTexpiry = '-1h'; // issue already expired JWT when using expired key
 	} else {
-		const validKeys = await loadKeys(); // load valid keys
+		await loadKeys().then(async validKeys=> {
+			if (validKeys.length === 0) genAndStoreKeys();
+		}); // load valid keys
+
+		let validKeys = await loadKeys();
 
 		// check if there are valid keys (always should be)
 		if (validKeys.length === 0) throw new Error('No valid keys available for signing');
