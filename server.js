@@ -2,7 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const {signJWT} = require('./JWTAuth');
-const {genAndStoreKeys, loadKeys} = require('./keyGen');
+const {genAndStoreKeys, loadKeys, initStorage, cleanExpiredKeys} = require('./keyGen');
 
 const app = express();
 const port = 8080;
@@ -11,8 +11,6 @@ app.use(express.json()); // middleware to allow JSON data
 
 // POST Endpoint for signing JWTs
 app.post('/auth', async (req, res) => {
-
-	await genAndStoreKeys(); // temp for testing
 
 	try {
 		const expired = req.query.expired === 'true'; // checks if user wants expired key sign
@@ -67,6 +65,37 @@ app.get('/.well-known/jwks.json', async (req, res) => {
 
 });
 
-app.listen(port, () => {
-	console.log(`Server started... listening on port: ${port}`)
-});
+async function startServer(keyRotation = 1) {
+	try {
+
+		// Ensure private_keys directory is initalized
+		await initStorage();
+
+		// Check if valid keys already exist, if not generate one
+		const keys = await loadKeys();
+
+		if (keys.length === 0) {
+			console.log('No valid keys, generating initial key');
+			await genAndStoreKeys();
+		}
+
+		// Key rotation, time (in hours) defined by function input
+		setInterval(async () => {
+			console.log('Rotating Keys');
+			await genAndStoreKeys();
+			await cleanExpiredKeys();
+		}, keyRotation * (60 * 60 * 1000)); // default is 1 hour rotation
+
+		// start server on port (8080)
+		app.listen(port, () => {
+		console.log(`Server started... listening on port: ${port}`)
+
+	});
+	} catch (err) { 
+		// Exit entire process if server fails to start
+		console.error('Error starting server: ', err);
+		process.exit(1);
+	}
+}
+
+startServer();
