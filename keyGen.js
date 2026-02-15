@@ -2,8 +2,13 @@ const fs = require('fs').promises; // to be used for storing priv keys in file
 const path = require('path');
 const crypto = require('crypto');
 
-const KEY_DIR = path.join(__dirname, 'private_keys'); // path to private_keys
+let KEY_DIR = path.join(__dirname, 'private_keys'); // path to private_keys
 const KEY_EXP = 2; // explicit key expiry (in hours)
+
+// allows change in key directory for testing purposes
+function setKeyDir(keyDir) {
+	KEY_DIR = keyDir;
+}
 
 // Ensures that private_keys is initialized, even if removed before program start
 async function initStorage() {
