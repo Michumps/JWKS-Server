@@ -8,3 +8,9 @@ private_keys/
 
 ## exclude test client
 CSCE3550-1.0.0/
+
+##exclude test_keys directory for test suite
+test_keys/
+
+##.gitkeep preserves structure for directory
+!test_keys/.gitkeep
