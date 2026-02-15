@@ -112,4 +112,6 @@ async function startServer(keyRotation = 1) {
 	}
 }
 
-startServer();
+if (require.main === module) startServer(); // only run if not required (for supertest)
+
+module.exports = app;
