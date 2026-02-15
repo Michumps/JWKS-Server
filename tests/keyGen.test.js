@@ -1,12 +1,13 @@
 const fs = require('fs').promises;
 const path = require('path');
+// functions to be implemented in test suite
 const {
 	setKeyDir,
-	initStorage,
+	//initStorage,
 	genAndStoreKeys,
-	loadKeys,
-	loadExpKeys,
-	cleanExpiredKeys
+	//loadKeys,
+	//loadExpKeys,
+	//cleanExpiredKeys
 } = require('../keyGen');
 
 // use a separate testing directory
@@ -22,10 +23,10 @@ describe('Key Creation and Storage', () => {
 		try {
 			const testDir = await fs.readdir(TEST_KEY_DIR);
 
-			for (files of testDir) {
+			for (const files of testDir) {
 				await fs.unlink(path.join(TEST_KEY_DIR, files));
 			}
-		} catch (err) {
+		} catch {
 			// okay if directory doesn't exist
 		}
 	});
@@ -34,12 +35,12 @@ describe('Key Creation and Storage', () => {
 		try {
 			const testDir = await fs.readdir(TEST_KEY_DIR);
 
-			for (files of testDir) {
+			for (const files of testDir) {
 				await fs.unlink(path.join(TEST_KEY_DIR, files));
 			}
 
 			await fs.rmdir(TEST_KEY_DIR);
-		} catch (err) {
+		} catch {
 			// okay if directory doesn't exist
 		}
 	})

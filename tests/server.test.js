@@ -1,5 +1,4 @@
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
 
 // mock keyGen so no files are created during testing
 jest.mock('../keyGen');
@@ -80,19 +79,19 @@ describe('JWKS Server', () => {
 
 		// handle all invalid HTTP methods
 		test('Should respond 404 to invalid GET method', async () => {
-			const response = await request(app)
+			await request(app)
 				.get('/auth')
 				.expect(405);
 		});
 
 		test('Should respond 404 to invalid PUT method', async () => {
-			const response = await request(app)
+			await request(app)
 				.put('/auth')
 				.expect(405);
 		});
 
 		test('Should respond 404 to invalid DELETE method', async () => {
-			const response = await request(app)
+			await request(app)
 				.delete('/auth')
 				.expect(405);
 		});
@@ -135,19 +134,19 @@ describe('JWKS Server', () => {
 
 		// handle all invalid HTTP methods
 		test('Should respond 404 to invalid POST method', async () => {
-			const response = await request(app)
+			await request(app)
 				.post('/.well-known/jwks.json')
 				.expect(405);
 		});
 
 		test('Should respond 404 to invalid PUT method', async () => {
-			const response = await request(app)
+			await request(app)
 				.put('/.well-known/jwks.json')
 				.expect(405);
 		});
 
 		test('Should respond 404 to invalid DELETE method', async () => {
-			const response = await request(app)
+			await request(app)
 				.delete('/.well-known/jwks.json')
 				.expect(405);
 		});

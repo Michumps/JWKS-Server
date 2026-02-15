@@ -1,8 +1,7 @@
-const fs = require('fs').promises
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const {signJWT} = require('../JWTAuth');
-const {setKeyDir, initStorage, genAndStoreKeys, loadValidKeys} = require('../keyGen');
+const {setKeyDir, initStorage, genAndStoreKeys} = require('../keyGen');
 
 const TEST_KEY_DIR = path.join(__dirname, 'test_keys');
 
