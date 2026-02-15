@@ -1,5 +1,4 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const {signJWT} = require('./JWTAuth');
 const {genAndStoreKeys, loadKeys, initStorage, cleanExpiredKeys} = require('./keyGen');
@@ -21,10 +20,11 @@ app.post('/auth', async (req, res) => {
 
 		const JWT = await signJWT(payload, expired);
 
-		res.status(200).json({JWT}); // respond with signed JWT
+		res.status(201).json({JWT}); // respond with signed JWT
 		
 	} catch (err) {
 		console.error('Failed to sign JWT', err);
+		res.status(500).json({error: "Failed to sign JWT"})
 	}
 
 });

@@ -29,8 +29,8 @@ async function signJWT(payload, expired = false) {
 		JWTexpiry = '1h'; // JWT valid for 1 hour
 	}
 
-	privKey = keys[0].privateKey; // if there are keys select first one
-	kid = keys[0].kid; // kid for priv key
+	const privKey = keys[0].privateKey; // if there are keys select first one
+	const kid = keys[0].kid; // kid for priv key
 
 	const options = {
 		algorithm: 'RS256',

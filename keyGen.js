@@ -28,7 +28,7 @@ async function genAndStoreKeys(genExpired = 1) {
 			type: 'pkcs1',
 			format: 'pem'
 		},
-	}, (err, publicKey, privateKey) => {});
+	});
 
 	const kid = Date.now(); // timestamp for kid
 	const exp = Math.floor((Date.now() / 1000) + ((KEY_EXP * 3600) * genExpired)); // expiry set based on KEY_EXP and genExpired
