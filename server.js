@@ -66,6 +66,19 @@ app.get('/.well-known/jwks.json', async (req, res) => {
 
 });
 
+// catch-all for unsupported methods and endpoints
+app.all('/auth', (req, res) => {
+	res.status(405).send('Unsupported Method');
+})
+
+app.all('/.well-known/jwks.json', (req, res) => {
+	res.status(405).send('Unsupported Method');
+});
+
+app.use((req, res) => {
+	res.status(404).send('Resource not found');
+});
+
 async function startServer(keyRotation = 1) {
 	try {
 
