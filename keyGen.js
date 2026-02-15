@@ -163,6 +163,7 @@ async function genAndStoreKeys(genExpired = 1) {
 
 	// exports functions to be used in other files
 	module.exports = {
+		setKeyDir,
 		initStorage,
 		genAndStoreKeys,
 		loadKeys,
