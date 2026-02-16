@@ -1,9 +1,11 @@
 const request = require('supertest');
 
-// mock keyGen so no files are created during testing
+// mock keyGen and JWTAuth so no files are created during testing
 jest.mock('../keyGen');
+jest.mock('../JWTAuth');
 
-const {initStorage, genAndStoreKeys, loadKeys} = require('../keyGen');
+const {initStorage, genAndStoreKeys, loadKeys, loadExpKeys} = require('../keyGen');
+const {signJWT} = require('../JWTAuth');
 
 // mock values so no key gen or files are created
 loadKeys.mockResolvedValue([
@@ -39,6 +41,42 @@ lDhMl8UskKHJvLVTdNhWsyQAp8fPt0sVW6cTMI4+EB1r/vpSxCigfg==
 		exp: Math.floor((Date.now() / 1000) + 7200) // expires 2 hours from now
 	}
 ]);
+
+loadExpKeys.mockResolvedValue([
+	{
+		kid: 1234567890,
+		privateKey: `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAjm02A5EyYgG2uyznlnogs8IieMjt6vNXBzs9Dg2m4OV2Eny7
++RWPJVTnmnFcLYmzWb+RvJPp9MQT6PNn9FKodrkQEyCvrkLy51QoFHXEEPZW9MR7
+vyJKgW5LWqdPxcfC+YSNcl/GDg1n2c3g3bzcpX7p1PqBcX/KYOimWqpNOFoBtMBj
+m/9RA+sa2nccuhdl0BG/RQBzvBMWQIebeJdpR0bvuiw8kboQXfBpS45MH7PtzsPc
+hBOCZo5/XRdhxCkJLY5LTGxH5ukXttwW5TJe6Kw5BKvFhDmSmljvGiDNEjKfNW3k
+kVF9FxniSYvJqpYaGXx73CKcBjk4uvEk00XLwwIDAQABAoIBAQCNMBgWay4916MU
+Y8xj8EdQy0cu40hu27FPGttIfiIK2Y01gG862bNgd41sHaoZ/mJLuss23I5VNLbj
++772haY4ovYbcBCXuAhhZ5yfw6qMghbrZ4egjta6/eI3SJqc3o0amts5IVYNgh6L
+3DpotZspd+lHVtlQ8TRm4tpeEGqiS6LzjoTCfClTUq75qJdqjcT8bOcztYtW/Svv
+cNPEXjJd1Ksfaw8Gj6OQ2n87+iZcQO43U/SSnsRUA3fg4W8uv/9/HhYnyjEqO1l5
+x9CGTNQe5kUeeJNiiJ7jDmUpYPofjeCK6V26KdKTC/YLXDaP4nk9gMzsQsE3c1lP
+L1RaEtR5AoGBANKjfkzxX6usCI28jrAK0rWMAEXAT6s8wZFmd/omWvjsfo/Prjg1
+AXfZOG2KAIXUJn8MUTvuQw/plRBPhzK6TmMkdOn2xRtkzVWzJLaRYL5Aeqf3UQO1
+oH1VZBO2Z9R8I/8rObqs3WrDr3O5RzGjoK1+gXQxeR2+/soH3E8ZhT3dAoGBAK0Z
+MD6wk/WOsFo+fkiyId5VQ87DjMBctBH5HOKTE5fVgRuPeYj0z/pcsviG5wdWt/XQ
+XmW4ZvwiIbm3KdV8oJGyx/ENNc+WJsrVL6piTnm68dprr7rQ805iOaEHO0Gp89hr
+uwYAJhQ8y558dlCeJGruSCOgv8hXpFlbG6lcvqYfAoGBALyh0X+SQTz56QcVLysT
+5jLS14Offzk4RZiyjQslwh5dm9GqCLkpLtFnZBMknOc8X+Uy4KSs8L2VTvq2Xbre
+AUjj4xeK+GVZ1lDDB0O/2UVHdRBqeNC7nKfhCqhkl4NAUPQ4f5BfMkJkUAFwkQMx
+J7l3KvMlQvOSkZXXiEIF9r65AoGAChY8rHqHtLiC6E9Z9oyC0rzvPZ5BlngQejel
+CkL90kw7wMpkj6mMcQ9z0m2yCshv4eApkA3l2m12v6a/xlQD21mqsw5NA3LBgfJY
+W7pszkUpkMvTqrRAaWHp78tHFbV8ozDr7haWIXnFd8/S6TG994k5JPJaGqeYySg4
+/W6NIYsCgYAYYaSMuZhg6EHxB3eVerTbm2Pfr8vP5BuOitKqP0tA2z2enRg/LKTd
+czLKpmA09UDO9RLTFXzf/MaJt77EO2fi/6ummwHvcsI3lMS8iuwqurbB/paGS745
+lDhMl8UskKHJvLVTdNhWsyQAp8fPt0sVW6cTMI4+EB1r/vpSxCigfg==
+-----END RSA PRIVATE KEY-----`,
+		exp: Math.floor((Date.now() / 1000) - 3600) // expired 1 hour ago
+	}
+]);
+
+signJWT.mockResolvedValue('mock-jwt-token-12345.67890.abcdef');
 
 initStorage.mockResolvedValue();
 genAndStoreKeys.mockResolvedValue({
@@ -95,6 +133,25 @@ describe('JWKS Server', () => {
 				.delete('/auth')
 				.expect(405);
 		});
+
+		test('Should accept expired query parameter', async () => {
+			const response = await request(app)
+				.post('/auth?expired=true')
+				.expect(201);
+
+			expect(response.body).toHaveProperty('JWT');
+			expect(typeof response.body.JWT).toBe('string');
+		});
+
+		test('Should return valid JSON structure with JWT', async () => {
+			const response = await request(app)
+				.post('/auth')
+				.expect(201);
+
+			expect(response.body).toBeInstanceOf(Object);
+			expect(Object.keys(response.body)).toContain('JWT');
+			expect(Object.keys(response.body).length).toBe(1);
+		});
 	});
 
 	describe('GET /.well-known/jwks.json', () => {
@@ -149,6 +206,127 @@ describe('JWKS Server', () => {
 			await request(app)
 				.delete('/.well-known/jwks.json')
 				.expect(405);
+		});
+
+		test('should return keys with kid as string', async () => {
+			const response = await request(app)
+				.get('/.well-known/jwks.json')
+				.expect(200);
+
+			const keys = response.body.keys;
+			keys.forEach(key => {
+				expect(typeof key.kid).toBe('string');
+			});
+		});
+
+		test('should return valid RSA public key components', async () => {
+			const response = await request(app)
+				.get('/.well-known/jwks.json')
+				.expect(200);
+
+			const keys = response.body.keys;
+			keys.forEach(key => {
+				// n and e are base64url encoded RSA modulus and exponent
+				expect(key.n).toBeDefined();
+				expect(key.e).toBeDefined();
+				expect(typeof key.n).toBe('string');
+				expect(typeof key.e).toBe('string');
+			});
+		});
+
+		test('should return empty keys array when no keys available', async () => {
+			loadKeys.mockResolvedValueOnce([]);
+
+			const response = await request(app)
+				.get('/.well-known/jwks.json')
+				.expect(200);
+
+			expect(response.body.keys).toEqual([]);
+		});
+	});
+
+	describe('Invalid routes', () => {
+		test('Should return 404 for undefined routes', async () => {
+			await request(app)
+				.get('/undefined-route')
+				.expect(404);
+		});
+
+		test('Should return 404 with appropriate message', async () => {
+			const response = await request(app)
+				.get('/undefined-route')
+				.expect(404);
+
+			expect(response.text).toContain('not found');
+		});
+
+		test('Should handle POST to undefined routes', async () => {
+			await request(app)
+				.post('/some-random-path')
+				.expect(404);
+		});
+	});
+
+	describe('Error Handling', () => {
+		afterEach(() => {
+			jest.clearAllMocks();
+			// Restore default mocks
+			signJWT.mockResolvedValue('mock-jwt-token-12345.67890.abcdef');
+			loadKeys.mockResolvedValue([
+				{
+					kid: 1234567890,
+					privateKey: `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAjm02A5EyYgG2uyznlnogs8IieMjt6vNXBzs9Dg2m4OV2Eny7
++RWPJVTnmnFcLYmzWb+RvJPp9MQT6PNn9FKodrkQEyCvrkLy51QoFHXEEPZW9MR7
+vyJKgW5LWqdPxcfC+YSNcl/GDg1n2c3g3bzcpX7p1PqBcX/KYOimWqpNOFoBtMBj
+m/9RA+sa2nccuhdl0BG/RQBzvBMWQIebeJdpR0bvuiw8kboQXfBpS45MH7PtzsPc
+hBOCZo5/XRdhxCkJLY5LTGxH5ukXttwW5TJe6Kw5BKvFhDmSmljvGiDNEjKfNW3k
+kVF9FxniSYvJqpYaGXx73CKcBjk4uvEk00XLwwIDAQABAoIBAQCNMBgWay4916MU
+Y8xj8EdQy0cu40hu27FPGttIfiIK2Y01gG862bNgd41sHaoZ/mJLuss23I5VNLbj
++772haY4ovYbcBCXuAhhZ5yfw6qMghbrZ4egjta6/eI3SJqc3o0amts5IVYNgh6L
+3DpotZspd+lHVtlQ8TRm4tpeEGqiS6LzjoTCfClTUq75qJdqjcT8bOcztYtW/Svv
+cNPEXjJd1Ksfaw8Gj6OQ2n87+iZcQO43U/SSnsRUA3fg4W8uv/9/HhYnyjEqO1l5
+x9CGTNQe5kUeeJNiiJ7jDmUpYPofjeCK6V26KdKTC/YLXDaP4nk9gMzsQsE3c1lP
+L1RaEtR5AoGBANKjfkzxX6usCI28jrAK0rWMAEXAT6s8wZFmd/omWvjsfo/Prjg1
+AXfZOG2KAIXUJn8MUTvuQw/plRBPhzK6TmMkdOn2xRtkzVWzJLaRYL5Aeqf3UQO1
+oH1VZBO2Z9R8I/8rObqs3WrDr3O5RzGjoK1+gXQxeR2+/soH3E8ZhT3dAoGBAK0Z
+MD6wk/WOsFo+fkiyId5VQ87DjMBctBH5HOKTE5fVgRuPeYj0z/pcsviG5wdWt/XQ
+XmW4ZvwiIbm3KdV8oJGyx/ENNc+WJsrVL6piTnm68dprr7rQ805iOaEHO0Gp89hr
+uwYAJhQ8y558dlCeJGruSCOgv8hXpFlbG6lcvqYfAoGBALyh0X+SQTz56QcVLysT
+5jLS14Offzk4RZiyjQslwh5dm9GqCLkpLtFnZBMknOc8X+Uy4KSs8L2VTvq2Xbre
+AUjj4xeK+GVZ1lDDB0O/2UVHdRBqeNC7nKfhCqhkl4NAUPQ4f5BfMkJkUAFwkQMx
+J7l3KvMlQvOSkZXXiEIF9r65AoGAChY8rHqHtLiC6E9Z9oyC0rzvPZ5BlngQejel
+CkL90kw7wMpkj6mMcQ9z0m2yCshv4eApkA3l2m12v6a/xlQD21mqsw5NA3LBgfJY
+W7pszkUpkMvTqrRAaWHp78tHFbV8ozDr7haWIXnFd8/S6TG994k5JPJaGqeYySg4
+/W6NIYsCgYAYYaSMuZhg6EHxB3eVerTbm2Pfr8vP5BuOitKqP0tA2z2enRg/LKTd
+czLKpmA09UDO9RLTFXzf/MaJt77EO2fi/6ummwHvcsI3lMS8iuwqurbB/paGS745
+lDhMl8UskKHJvLVTdNhWsyQAp8fPt0sVW6cTMI4+EB1r/vpSxCigfg==
+-----END RSA PRIVATE KEY-----`,
+					exp: Math.floor((Date.now() / 1000) + 7200)
+				}
+			]);
+		});
+
+		test('Should return 500 when signJWT throws error', async () => {
+			signJWT.mockRejectedValueOnce(new Error('Key signing failed'));
+
+			const response = await request(app)
+				.post('/auth')
+				.expect(500);
+
+			expect(response.body).toHaveProperty('error');
+			expect(response.body.error).toContain('Failed to sign JWT');
+		});
+
+		test('Should return 500 when loadKeys throws error', async () => {
+			loadKeys.mockRejectedValueOnce(new Error('Database error'));
+
+			const response = await request(app)
+				.get('/.well-known/jwks.json')
+				.expect(500);
+
+			expect(response.body).toHaveProperty('error');
+			expect(response.body.error).toContain('Error generating JWKs');
 		});
 	});
 });

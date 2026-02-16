@@ -1,17 +1,32 @@
 const path = require('path');
+const fs = require('fs').promises;
 const jwt = require('jsonwebtoken');
 const {signJWT} = require('../JWTAuth');
 const {setKeyDir, initStorage, genAndStoreKeys} = require('../keyGen');
 
-const TEST_KEY_DIR = path.join(__dirname, 'test_keys');
+const TEST_KEY_DIR = path.join(__dirname, 'jwt_auth_test_keys');
 
 describe('JWT Authorization', () => {
 	beforeAll(async () => {
 		setKeyDir(TEST_KEY_DIR); // ensures keys are added to test_keys
-		initStorage();
+		await initStorage();
 
 		await genAndStoreKeys(); // Initial valid key for testing
 		await genAndStoreKeys(-1); // Expired key for testing
+	});
+
+	afterAll(async () => {
+		try {
+			const testDir = await fs.readdir(TEST_KEY_DIR);
+			for (const files of testDir) {
+				// Skip .gitkeep to preserve directory structure
+				if (files !== '.gitkeep') {
+					await fs.unlink(path.join(TEST_KEY_DIR, files));
+				}
+			}
+		} catch {
+			// okay if directory doesn't exist
+		}
 	});
 
 	describe('signJWT', () => {
