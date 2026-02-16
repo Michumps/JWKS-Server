@@ -128,7 +128,7 @@ async function genAndStoreKeys(genExpired = 1) {
 	}
 
 	async function cleanExpiredKeys() {
-		const currentTime = Date.now();
+		const currentTime = Math.floor(Date.now() / 1000); // convert to seconds
 		let deletedKeys = 0;
 
 		try {
