@@ -49,4 +49,4 @@ curl http://localhost:8080/.well-known/jwks.json
 
 ## Testing
 - JWTs can be verified using [jwt.io](https://jwt.io) using the exposed keys from the JWKS endpoint
-- Test suite can be executed using npm test (TO BE IMPLEMENTED)
+- Test suite can be executed using npm test
