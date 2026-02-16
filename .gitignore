@@ -14,3 +14,12 @@ test_keys/
 
 ##.gitkeep preserves structure for directory
 !test_keys/.gitkeep
+
+##exclude jwt_auth_test_keys directory for JWT auth test suite
+jwt_auth_test_keys/
+
+##.gitkeep preserves structure for directory
+!jwt_auth_test_keys/.gitkeep
+
+## exclude generated coverage directory
+coverage/
