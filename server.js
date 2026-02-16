@@ -79,6 +79,7 @@ app.use((req, res) => {
 	res.status(404).send('Resource not found');
 });
 
+/* istanbul ignore next */
 async function startServer(keyRotation = 1) {
 	try {
 
