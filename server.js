@@ -1,7 +1,8 @@
 const express = require('express');
 const crypto = require('crypto');
 const {signJWT} = require('./JWTAuth');
-const {genAndStoreKeys, loadKeys, initStorage, cleanExpiredKeys} = require('./keyGen');
+const {genAndStoreKeys, loadKeys, cleanExpiredKeys} = require('./keyGen');
+const {initDatabase} = require('./database');
 
 const app = express();
 const port = 8080;
@@ -18,7 +19,7 @@ app.post('/auth', async (req, res) => {
 			user: 'test'
 		};
 
-		const JWT = await signJWT(payload, expired);
+		const JWT = signJWT(payload, expired);
 
 		res.status(201).json({JWT}); // respond with signed JWT
 		
@@ -33,7 +34,7 @@ app.post('/auth', async (req, res) => {
 app.get('/.well-known/jwks.json', async (req, res) => {
 
 	try {
-		const keys = await loadKeys();
+		const keys = loadKeys();
 
 		// convert from private key to public to avoid having to store both
 		const JWKS = keys.map(key => {
@@ -79,26 +80,25 @@ app.use((req, res) => {
 	res.status(404).send('Resource not found');
 });
 
-/* istanbul ignore next */
-async function startServer(keyRotation = 1) {
+/* istanbul ignore next */ async function startServer(keyRotation = 1) {
 	try {
 
-		// Ensure private_keys directory is initalized
-		await initStorage();
+		// Ensure data/ and database are initialized
+		initDatabase();
 
 		// Check if valid keys already exist, if not generate one
-		const keys = await loadKeys();
+		const keys = loadKeys();
 
 		if (keys.length === 0) {
 			console.log('No valid keys, generating initial key');
-			await genAndStoreKeys();
+			genAndStoreKeys();
 		}
 
 		// Key rotation, time (in hours) defined by function input
-		setInterval(async () => {
+		setInterval (() => {
 			console.log('Rotating Keys');
-			await genAndStoreKeys();
-			await cleanExpiredKeys();
+			genAndStoreKeys();
+			cleanExpiredKeys();
 		}, keyRotation * (60 * 60 * 1000)); // default is 1 hour rotation
 
 		// start server on port (8080)
