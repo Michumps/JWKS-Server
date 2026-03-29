@@ -2,83 +2,74 @@ const fs = require('fs').promises;
 const path = require('path');
 // functions to be implemented in test suite
 const {
-	setKeyDir,
-	initStorage,
 	genAndStoreKeys,
 	loadKeys,
 	loadExpKeys,
 	cleanExpiredKeys
 } = require('../keyGen');
+const {initDatabase, closeDatabase, getDatabase} = require('../database');
 
-// use a separate testing directory
-const TEST_KEY_DIR = path.join(__dirname, 'test_keys');
+// use a separate testing database
+const TEST_DB_FILE = 'totally_not_my_testbase.db';
 
 describe('Key Creation and Storage', () => {
-	beforeAll(async () => {
-		setKeyDir(TEST_KEY_DIR); // sets key directory for all tests to be test_keys
-		await fs.mkdir(TEST_KEY_DIR, {recursive: true}); // creates test_keys directory
-	});
-
-	beforeEach(async () => { // Cleans test_keys before each test
+	beforeAll(() => {
+		// Close any previous database connection
 		try {
-			const testDir = await fs.readdir(TEST_KEY_DIR);
-
-			for (const files of testDir) {
-				// Skip .gitkeep to preserve directory structure
-				if (files !== '.gitkeep') {
-					await fs.unlink(path.join(TEST_KEY_DIR, files));
-				}
-			}
-		} catch {
-			// okay if directory doesn't exist
+			closeDatabase();
+		} catch (e) {
+			// No database to close
+		}
+		
+		// Initialize database with test file
+		initDatabase(TEST_DB_FILE);
+		
+		// Clear any existing data
+		const db = getDatabase();
+		try {
+			db.exec('DELETE FROM keys');
+		} catch (e) {
+			// Ignore if table doesn't exist
 		}
 	});
 
-	afterAll(async () => {
+	beforeEach(() => { // Clears database before each test
+		const db = getDatabase();
 		try {
-			const testDir = await fs.readdir(TEST_KEY_DIR);
-
-			for (const files of testDir) {
-				// Skip .gitkeep to preserve directory structure
-				if (files !== '.gitkeep') {
-					await fs.unlink(path.join(TEST_KEY_DIR, files));
-				}
-			}
-		} catch {
-			// okay if directory doesn't exist
+			db.exec('DELETE FROM keys');
+		} catch (e) {
+			// Ignore error if table doesn't exist yet
 		}
+	});
+
+	afterAll(() => {
+		const db = getDatabase();
+		try {
+			db.exec('DELETE FROM keys');
+		} catch (e) {
+			// Ignore error
+		}
+		closeDatabase();
 	})
 
 	describe('initStorage', () => {
-		test('Should create KEY_DIR if it does not exist', async () => {
-			// Remove the test directory first
-			try {
-				const testDir = await fs.readdir(TEST_KEY_DIR);
-				for (const file of testDir) {
-					await fs.unlink(path.join(TEST_KEY_DIR, file));
-				}
-				await fs.rmdir(TEST_KEY_DIR);
-			} catch {
-				// directory may not exist
-			}
-
-			// Call initStorage
-			await initStorage();
-
-			// Verify directory was created
-			const dirExists = await fs.access(TEST_KEY_DIR).then(() => true).catch(() => false);
-			expect(dirExists).toBe(true);
+		test('Should initialize database without errors', () => {
+			// Database already initialized in beforeAll
+			const db = getDatabase();
+			expect(db).toBeDefined();
 		});
 
-		test('Should not throw error if KEY_DIR already exists', async () => {
-			// Directory already created in beforeAll
-			await expect(initStorage()).resolves.not.toThrow();
+		test('Database should have keys table', () => {
+			const db = getDatabase();
+			const result = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='keys'").get();
+			expect(result).toBeDefined();
+			expect(result.name).toBe('keys');
 		});
 	});
 
 	describe('genAndStoreKey', () => {
-		test('Should have proper properties and types', async () => {
-			const result = await genAndStoreKeys();
+		test('Should have proper properties and types', () => {
+			const result = genAndStoreKeys();
 
 			// genAndStoreKeys returns proper values
 			expect(result).toHaveProperty('kid');
@@ -92,69 +83,64 @@ describe('Key Creation and Storage', () => {
 			expect(result.publicKey).toContain('BEGIN PUBLIC KEY');
 		});
 
-		test('Ensure key and metadata files are created', async () => {
-			const result = await genAndStoreKeys();
+		test('Ensure key is stored in database', () => {
+			const result = genAndStoreKeys();
 
-			// try and find resulting key and metadata files
-			const keyPath = path.join(TEST_KEY_DIR, `key_${result.kid}.pem`);
-			const metaPath = path.join(TEST_KEY_DIR, `key_${result.kid}.json`);
+			// Query database to verify key was stored
+			const db = getDatabase();
+			const storedKey = db.prepare('SELECT * FROM keys WHERE kid = ?').get(result.kid);
 
-			// checks if files are valid and can be accessed
-			const keyExists = await fs.access(keyPath).then(() => true).catch(() => false);
-			const metaExists = await fs.access(metaPath).then(() => true).catch(() => false);
+			expect(storedKey).toBeDefined();
+			expect(storedKey.kid).toBe(result.kid);
+			expect(storedKey.key).toBe(result.privateKey);
+			expect(storedKey.exp).toBe(result.exp);
+		});
 
-			expect(keyExists).toBe(true);
-			expect(metaExists).toBe(true);
-		})
-
-		test('Should set expiry some time in the future', async () => {
-			const result = await genAndStoreKeys();
+		test('Should set expiry some time in the future', () => {
+			const result = genAndStoreKeys();
 
 			const currentTime = Math.floor(Date.now() / 1000);
-			const expectedExp = Math.floor(currentTime + (3600 * 2)) // Expected expiry should be two hours from now (to change: expiry time set)
+			const expectedExp = Math.floor(currentTime + (3600 * 2)) // Expected expiry should be two hours from now
 
 			expect(result.exp).toBeGreaterThanOrEqual(expectedExp - 5); // Account for small time differences
 			expect(result.exp).toBeLessThanOrEqual(expectedExp + 5);
 		});
 
-		test('Using expired parameter should set expiry in the past', async () => {
-			const result = await genAndStoreKeys(-1);
+		test('Using expired parameter should set expiry in the past', () => {
+			const result = genAndStoreKeys(-1);
 
 			const currentTime = Math.floor(Date.now() / 1000);
 
 			expect(result.exp).toBeLessThan(currentTime); // exp should be in the past
 		});
 
-		test('Should generate unique kid for each key', async () => {
-			const key1 = await genAndStoreKeys();
-			const key2 = await genAndStoreKeys();
+		test('Should generate unique kid for each key', () => {
+			const key1 = genAndStoreKeys();
+			const key2 = genAndStoreKeys();
 
 			expect(key1.kid).not.toBe(key2.kid);
 		});
 
-		test('Metadata file should contain correct properties', async () => {
-			const result = await genAndStoreKeys();
-			const metaPath = path.join(TEST_KEY_DIR, `key_${result.kid}.json`);
-			const metaContent = await fs.readFile(metaPath, 'utf-8');
-			const metadata = JSON.parse(metaContent);
+		test('Stored key should be retrievable from database', () => {
+			const result = genAndStoreKeys();
+			
+			const db = getDatabase();
+			const storedKey = db.prepare('SELECT * FROM keys WHERE kid = ?').get(result.kid);
 
-			expect(metadata).toHaveProperty('kid');
-			expect(metadata).toHaveProperty('exp');
-			expect(metadata).toHaveProperty('created');
-			expect(metadata.kid).toBe(result.kid);
-			expect(metadata.exp).toBe(result.exp);
+			expect(storedKey).toBeDefined();
+			expect(storedKey.key).toBe(result.privateKey);
 		});
 	});
 
 	describe('loadKeys', () => {
-		test('Should return empty array when no valid keys exist', async () => {
-			const validKeys = await loadKeys();
+		test('Should return empty array when no valid keys exist', () => {
+			const validKeys = loadKeys();
 			expect(validKeys).toEqual([]);
 		});
 
-		test('Should load valid keys that have not expired', async () => {
-			await genAndStoreKeys();
-			const validKeys = await loadKeys();
+		test('Should load valid keys that have not expired', () => {
+			genAndStoreKeys();
+			const validKeys = loadKeys();
 
 			expect(validKeys).toHaveLength(1);
 			expect(validKeys[0]).toHaveProperty('kid');
@@ -162,29 +148,28 @@ describe('Key Creation and Storage', () => {
 			expect(validKeys[0]).toHaveProperty('exp');
 		});
 
-		test('Should not load expired keys', async () => {
-			await genAndStoreKeys(); // valid key
-			await new Promise(resolve => setTimeout(resolve, 2)); // ensure different timestamp
-			await genAndStoreKeys(-1); // expired key
+		test('Should not load expired keys', () => {
+			genAndStoreKeys(); // valid key
+			genAndStoreKeys(-1); // expired key
 
-			const validKeys = await loadKeys();
+			const validKeys = loadKeys();
 
 			expect(validKeys).toHaveLength(1);
 			expect(validKeys[0].exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
 		});
 
-		test('Should load multiple valid keys', async () => {
-			await genAndStoreKeys();
-			await genAndStoreKeys();
+		test('Should load multiple valid keys', () => {
+			genAndStoreKeys();
+			genAndStoreKeys();
 
-			const validKeys = await loadKeys();
+			const validKeys = loadKeys();
 
 			expect(validKeys.length).toBeGreaterThanOrEqual(2);
 		});
 
-		test('Loaded keys should contain valid PEM format private keys', async () => {
-			await genAndStoreKeys();
-			const validKeys = await loadKeys();
+		test('Loaded keys should contain valid PEM format private keys', () => {
+			genAndStoreKeys();
+			const validKeys = loadKeys();
 
 			validKeys.forEach(key => {
 				expect(key.privateKey).toContain('BEGIN RSA PRIVATE KEY');
@@ -194,36 +179,35 @@ describe('Key Creation and Storage', () => {
 	});
 
 	describe('loadExpKeys', () => {
-		test('Should return empty array when no expired keys exist', async () => {
-			await genAndStoreKeys(); // valid key only
-			const expiredKeys = await loadExpKeys();
+		test('Should return empty array when no expired keys exist', () => {
+			genAndStoreKeys(); // valid key only
+			const expiredKeys = loadExpKeys();
 
 			expect(expiredKeys).toEqual([]);
 		});
 
-		test('Should load only expired keys', async () => {
-			await genAndStoreKeys(); // valid key
-			await new Promise(resolve => setTimeout(resolve, 2)); // ensure different timestamp
-			await genAndStoreKeys(-1); // expired key
+		test('Should load only expired keys', () => {
+			genAndStoreKeys(); // valid key
+			genAndStoreKeys(-1); // expired key
 
-			const expiredKeys = await loadExpKeys();
+			const expiredKeys = loadExpKeys();
 
 			expect(expiredKeys).toHaveLength(1);
 			expect(expiredKeys[0].exp).toBeLessThan(Math.floor(Date.now() / 1000));
 		});
 
-		test('Should load multiple expired keys', async () => {
-			await genAndStoreKeys(-1);
-			await genAndStoreKeys(-1);
+		test('Should load multiple expired keys', () => {
+			genAndStoreKeys(-1);
+			genAndStoreKeys(-1);
 
-			const expiredKeys = await loadExpKeys();
+			const expiredKeys = loadExpKeys();
 
 			expect(expiredKeys.length).toBeGreaterThanOrEqual(2);
 		});
 
-		test('Expired keys should contain valid PEM format private keys', async () => {
-			await genAndStoreKeys(-1);
-			const expiredKeys = await loadExpKeys();
+		test('Expired keys should contain valid PEM format private keys', () => {
+			genAndStoreKeys(-1);
+			const expiredKeys = loadExpKeys();
 
 			expiredKeys.forEach(key => {
 				expect(key.privateKey).toContain('BEGIN RSA PRIVATE KEY');
@@ -233,59 +217,50 @@ describe('Key Creation and Storage', () => {
 	});
 
 	describe('cleanExpiredKeys', () => {
-		test('Should delete expired key files', async () => {
-			const expiredKey = await genAndStoreKeys(-1);
-			const keyPath = path.join(TEST_KEY_DIR, `key_${expiredKey.kid}.pem`);
-			const metaPath = path.join(TEST_KEY_DIR, `key_${expiredKey.kid}.json`);
+		test('Should delete expired keys from database', () => {
+			const expiredKey = genAndStoreKeys(-1);
 
-			// Verify files exist before cleanup
-			const keyExistsBefore = await fs.access(keyPath).then(() => true).catch(() => false);
-			const metaExistsBefore = await fs.access(metaPath).then(() => true).catch(() => false);
-			expect(keyExistsBefore).toBe(true);
-			expect(metaExistsBefore).toBe(true);
+			// Verify key exists before cleanup
+			const db = getDatabase();
+			let storedKeyBefore = db.prepare('SELECT * FROM keys WHERE kid = ?').get(expiredKey.kid);
+			expect(storedKeyBefore).toBeDefined();
 
 			// Clean expired keys
-			await cleanExpiredKeys();
+			cleanExpiredKeys();
 
-			// Verify files no longer exist
-			const keyExistsAfter = await fs.access(keyPath).then(() => true).catch(() => false);
-			const metaExistsAfter = await fs.access(metaPath).then(() => true).catch(() => false);
-			expect(keyExistsAfter).toBe(false);
-			expect(metaExistsAfter).toBe(false);
+			// Verify key no longer exists
+			let storedKeyAfter = db.prepare('SELECT * FROM keys WHERE kid = ?').get(expiredKey.kid);
+			expect(storedKeyAfter).toBeUndefined();
 		});
 
-		test('Should not delete valid keys', async () => {
-			const validKey = await genAndStoreKeys();
-			const keyPath = path.join(TEST_KEY_DIR, `key_${validKey.kid}.pem`);
-			const metaPath = path.join(TEST_KEY_DIR, `key_${validKey.kid}.json`);
+		test('Should not delete valid keys', () => {
+			const validKey = genAndStoreKeys();
 
-			await cleanExpiredKeys();
+			cleanExpiredKeys();
 
-			const keyExists = await fs.access(keyPath).then(() => true).catch(() => false);
-			const metaExists = await fs.access(metaPath).then(() => true).catch(() => false);
-			expect(keyExists).toBe(true);
-			expect(metaExists).toBe(true);
+			const db = getDatabase();
+			const storedKey = db.prepare('SELECT * FROM keys WHERE kid = ?').get(validKey.kid);
+			expect(storedKey).toBeDefined();
 		});
 
-		test('Should delete only expired keys when both valid and expired exist', async () => {
-			const validKey = await genAndStoreKeys();
-			const expiredKey = await genAndStoreKeys(-1);
+		test('Should delete only expired keys when both valid and expired exist', () => {
+			const validKey = genAndStoreKeys();
+			const expiredKey = genAndStoreKeys(-1);
 
-			await cleanExpiredKeys();
+			cleanExpiredKeys();
 
-			const validKeyPath = path.join(TEST_KEY_DIR, `key_${validKey.kid}.pem`);
-			const expiredKeyPath = path.join(TEST_KEY_DIR, `key_${expiredKey.kid}.pem`);
+			const db = getDatabase();
+			const validKeyStored = db.prepare('SELECT * FROM keys WHERE kid = ?').get(validKey.kid);
+			const expiredKeyStored = db.prepare('SELECT * FROM keys WHERE kid = ?').get(expiredKey.kid);
 
-			const validKeyExists = await fs.access(validKeyPath).then(() => true).catch(() => false);
-			const expiredKeyExists = await fs.access(expiredKeyPath).then(() => true).catch(() => false);
-
-			expect(validKeyExists).toBe(true);
-			expect(expiredKeyExists).toBe(false);
+			expect(validKeyStored).toBeDefined();
+			expect(expiredKeyStored).toBeUndefined();
 		});
 
-		test('Should handle directory with no keys gracefully', async () => {
-			// Directory is empty from beforeEach
-			await expect(cleanExpiredKeys()).resolves.not.toThrow();
+		test('Should handle database with no keys gracefully', () => {
+			// Database is empty from beforeEach
+			expect(() => cleanExpiredKeys()).not.toThrow();
 		});
 	});
 });
+

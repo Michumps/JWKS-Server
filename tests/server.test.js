@@ -1,14 +1,18 @@
 const request = require('supertest');
+const {initDatabase, closeDatabase, getDatabase} = require('../database');
 
 // mock keyGen and JWTAuth so no files are created during testing
 jest.mock('../keyGen');
 jest.mock('../JWTAuth');
 
-const {initStorage, genAndStoreKeys, loadKeys, loadExpKeys} = require('../keyGen');
+const {genAndStoreKeys, loadKeys, loadExpKeys} = require('../keyGen');
 const {signJWT} = require('../JWTAuth');
 
+// Test database configuration
+const TEST_DB_FILE = 'totally_not_my_testbase.db';
+
 // mock values so no key gen or files are created
-loadKeys.mockResolvedValue([
+loadKeys.mockReturnValue([
 	{
 		kid: 1234567890,
 		privateKey: `-----BEGIN RSA PRIVATE KEY-----
@@ -42,7 +46,7 @@ lDhMl8UskKHJvLVTdNhWsyQAp8fPt0sVW6cTMI4+EB1r/vpSxCigfg==
 	}
 ]);
 
-loadExpKeys.mockResolvedValue([
+loadExpKeys.mockReturnValue([
 	{
 		kid: 1234567890,
 		privateKey: `-----BEGIN RSA PRIVATE KEY-----
@@ -76,10 +80,9 @@ lDhMl8UskKHJvLVTdNhWsyQAp8fPt0sVW6cTMI4+EB1r/vpSxCigfg==
 	}
 ]);
 
-signJWT.mockResolvedValue('mock-jwt-token-12345.67890.abcdef');
+signJWT.mockReturnValue('mock-jwt-token-12345.67890.abcdef');
 
-initStorage.mockResolvedValue();
-genAndStoreKeys.mockResolvedValue({
+genAndStoreKeys.mockReturnValue({
 	kid: 1234567890,
 	privateKey: 'test-priv-key',
 	publicKey: 'test-pub-key',
@@ -90,7 +93,15 @@ let app;
 
 describe('JWKS Server', () => {
 	beforeAll(() => {
+		// Initialize database for server tests
+		initDatabase(TEST_DB_FILE);
+		
+		// Load the server after database is initialized
 		app = require('../server');
+	});
+
+	afterAll(() => {
+		closeDatabase();
 	});
 
 	describe ('POST /auth', () => {
@@ -235,7 +246,7 @@ describe('JWKS Server', () => {
 		});
 
 		test('should return empty keys array when no keys available', async () => {
-			loadKeys.mockResolvedValueOnce([]);
+			loadKeys.mockReturnValueOnce([]);
 
 			const response = await request(app)
 				.get('/.well-known/jwks.json')
@@ -271,8 +282,8 @@ describe('JWKS Server', () => {
 		afterEach(() => {
 			jest.clearAllMocks();
 			// Restore default mocks
-			signJWT.mockResolvedValue('mock-jwt-token-12345.67890.abcdef');
-			loadKeys.mockResolvedValue([
+			signJWT.mockReturnValue('mock-jwt-token-12345.67890.abcdef');
+			loadKeys.mockReturnValue([
 				{
 					kid: 1234567890,
 					privateKey: `-----BEGIN RSA PRIVATE KEY-----
@@ -308,7 +319,9 @@ lDhMl8UskKHJvLVTdNhWsyQAp8fPt0sVW6cTMI4+EB1r/vpSxCigfg==
 		});
 
 		test('Should return 500 when signJWT throws error', async () => {
-			signJWT.mockRejectedValueOnce(new Error('Key signing failed'));
+			signJWT.mockImplementationOnce(() => {
+				throw new Error('Key signing failed');
+			});
 
 			const response = await request(app)
 				.post('/auth')
@@ -319,7 +332,9 @@ lDhMl8UskKHJvLVTdNhWsyQAp8fPt0sVW6cTMI4+EB1r/vpSxCigfg==
 		});
 
 		test('Should return 500 when loadKeys throws error', async () => {
-			loadKeys.mockRejectedValueOnce(new Error('Database error'));
+			loadKeys.mockImplementationOnce(() => {
+				throw new Error('Database error');
+			});
 
 			const response = await request(app)
 				.get('/.well-known/jwks.json')
