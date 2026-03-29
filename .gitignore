@@ -1,25 +1,13 @@
 node_modules/
 
-## ignores private key directory*
-private_keys/
-
-##* except for the .gitkeep, which preserves structure for key storage
-!private_keys/.gitkeep
-
 ## exclude test client
 CSCE3550-1.0.0/
 
-##exclude test_keys directory for test suite
-test_keys/
+# ignore my database files; created on program run locally
+data/
 
-##.gitkeep preserves structure for directory
-!test_keys/.gitkeep
-
-##exclude jwt_auth_test_keys directory for JWT auth test suite
-jwt_auth_test_keys/
-
-##.gitkeep preserves structure for directory
-!jwt_auth_test_keys/.gitkeep
+# preserve directory for structure, believe its created anyway but just to be safe
+!data/.gitkeep
 
 ## exclude generated coverage directory
 coverage/
