@@ -16,6 +16,7 @@ function signJWT(payload, expired = false) {
 		}
 
 		// final check to see if there are expired keys (always should be)
+		/* istanbul ignore next */ 
 		if (expKeys.length === 0) throw new Error('No expired keys available for signing');
 
 		keys = expKeys;
@@ -31,6 +32,7 @@ function signJWT(payload, expired = false) {
 		}
 
 		// check if there are valid keys (always should be)
+		/* istanbul ignore next */ 
 		if (validKeys.length === 0) throw new Error('No valid keys available for signing');
 
 		keys = validKeys;

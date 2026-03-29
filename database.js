@@ -23,8 +23,7 @@ function initDatabase(dbFile = null) {
 		CREATE TABLE IF NOT EXISTS keys(
 			kid INTEGER PRIMARY KEY,
 			key TEXT NOT NULL,
-			exp INTEGER NOT NULL,
-			created INTEGER NOT NULL
+			exp INTEGER NOT NULL
 		)
 		`);
 
@@ -41,7 +40,15 @@ function getDatabase() {
 	return db;
 }
 
+function closeDatabase() {
+	if (db) {
+		db.close();
+		db = null;
+	}
+}
+
 module.exports = {
 	initDatabase,
-	getDatabase
+	getDatabase,
+	closeDatabase
 };

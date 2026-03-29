@@ -19,12 +19,11 @@ function genAndStoreKeys(genExpired = 1) {
 
 	const kid = Date.now(); // timestamp for kid
 	const exp = Math.floor((Date.now() / 1000) + ((KEY_EXP * 3600) * genExpired)); // expiry set based on KEY_EXP and genExpired
-	const created = Math.floor(Date.now() / 1000);
 
 	const db = getDatabase();
 
 	// Inserts private key into database
-	db.prepare('INSERT INTO keys (kid, key, exp, created) VALUES (?, ?, ?, ?)').run(kid, privateKey, exp, created);
+	db.prepare('INSERT INTO keys (kid, key, exp) VALUES (?, ?, ?)').run(kid, privateKey, exp);
 
 	console.log(`Successfully generated key-pair with kid ${kid}`);
 
