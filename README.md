@@ -43,13 +43,8 @@ curl http://localhost:8080/.well-known/jwks.json
 
 # Should return key(s) in JSON following proper JWKS format
 
-## Security Notes
-- Priate Keys are stored in the `private_keys/` directory with restricted permissions
-- The `private_keys/` directory is excluded from version control
 
 ## Testing
 - JWTs can be verified using [jwt.io](https://jwt.io) using the exposed keys from the JWKS endpoint
 - Test suite can be executed using npm test
 
-## Screenshot
-- The screenshot for project 1 is inside of the Wiki :)
