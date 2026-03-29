@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const {signJWT} = require('./JWTAuth');
 const {genAndStoreKeys, loadKeys, cleanExpiredKeys} = require('./keyGen');
-const {initDatabase} = require('./database');
+const {initDatabase, closeDatabase} = require('./database');
 
 const app = express();
 const port = 8080;
@@ -86,12 +86,17 @@ app.use((req, res) => {
 		// Ensure data/ and database are initialized
 		initDatabase();
 
+		// Clean up expired keys since last program run
+		cleanExpiredKeys();
+
 		// Check if valid keys already exist, if not generate one
 		const keys = loadKeys();
 
 		if (keys.length === 0) {
 			console.log('No valid keys, generating initial key');
 			genAndStoreKeys();
+			// Generate an expired key for testing
+			genAndStoreKeys(0);
 		}
 
 		// Key rotation, time (in hours) defined by function input
@@ -102,10 +107,25 @@ app.use((req, res) => {
 		}, keyRotation * (60 * 60 * 1000)); // default is 1 hour rotation
 
 		// start server on port (8080)
-		app.listen(port, () => {
+		const server = app.listen(port, () => {
 		console.log(`Server started... listening on port: ${port}`)
 
-	});
+		});
+
+		// Handle graceful shutdown to close database connection
+		const gracefulShutdown = () => {
+			console.log('Shutting down server...');
+			server.close(() => {
+				console.log('Server closed');
+				closeDatabase();
+				console.log('Database closed');
+				process.exit(0);
+			});
+		};
+
+		process.on('SIGINT', gracefulShutdown);
+		process.on('SIGTERM', gracefulShutdown);
+
 	} catch (err) { 
 		// Exit entire process if server fails to start
 		console.error('Error starting server: ', err);
@@ -113,6 +133,6 @@ app.use((req, res) => {
 	}
 }
 
-if (require.main === module) startServer(); // only run if not required (for supertest)
+/* istanbul ignore next */ if (require.main === module) startServer(); // only run if not required (for supertest)
 
 module.exports = app;
