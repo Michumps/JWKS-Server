@@ -8,7 +8,7 @@ let db = null;
 function initDatabase(dbFile = null) {
 	
 	// dbFile can be used instead; for testing
-	const finalFile = dbFile || 'totally_not_my_private_keys.db'
+	const finalFile = dbFile || 'totally_not_my_privateKeys.db'
 	const finalPath = path.join(__dirname, 'data', finalFile);
 
 	// Ensures that data/ is created if doesn't exist
