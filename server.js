@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const {signJWT} = require('./JWTAuth');
-const {genAndStoreKeys, loadKeys, cleanExpiredKeys} = require('./keyGen');
+const {genAndStoreKeys, loadKeys, loadExpKeys, cleanExpiredKeys} = require('./keyGen');
 const {initDatabase, closeDatabase} = require('./database');
 
 const app = express();
@@ -99,14 +99,12 @@ app.use((req, res) => {
 			genAndStoreKeys(0);
 		}
 
-		// Key rotation, time (in hours) defined by function input
-		setInterval (() => {
-			console.log('Rotating Keys');
-			genAndStoreKeys();
-			cleanExpiredKeys();
-		}, keyRotation * (60 * 60 * 1000)); // default is 1 hour rotation
-
-		// start server on port (8080)
+	// Check if expired keys exist, if not generate one
+	const expiredKeys = loadExpKeys();
+	if (expiredKeys.length === 0) {
+		console.log('No expired keys, generating one for testing');
+		genAndStoreKeys(0);
+	}
 		const server = app.listen(port, () => {
 		console.log(`Server started... listening on port: ${port}`)
 
