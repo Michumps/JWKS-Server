@@ -2,6 +2,11 @@ import fs from 'fs'; // used for directory creating and file permissions
 import path from 'path'
 import Database from 'better-sqlite3';
 
+interface KeyRow {
+	kid: number,
+	key: string,
+	exp: number
+}
 
 function initDatabase(dbFile: string | undefined):Database.Database {
 	
@@ -30,4 +35,5 @@ function initDatabase(dbFile: string | undefined):Database.Database {
 	return db;
 }
 
-export default initDatabase;
+export { initDatabase };
+export type { KeyRow };
