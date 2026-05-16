@@ -9,8 +9,12 @@ A JSON Web Key Set (JWKS) server that generates asymmetric RSA key pairs for sig
 ```bash 
 $npm install
 ```
+2. Compile
+```bash
+$npm run build
+```
 
-2. Start Server:
+3. Start Server:
 ```bash 
 $npm start
 ```
@@ -46,5 +50,8 @@ curl http://localhost:8080/.well-known/jwks.json
 
 ## Testing
 - JWTs can be verified using [jwt.io](https://jwt.io) using the exposed keys from the JWKS endpoint
-- Test suite can be executed using npm test
+
+## Notes
+- This version of the project has been rewritten from JavaScript to TypeScript as a learning
+exercise and thus the test suite has not yet been migrated.
 
