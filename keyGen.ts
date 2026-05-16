@@ -11,7 +11,7 @@ import type { KeyRow } from './database.js';
 const KEY_EXP = 2; // explicit key expiry, defined in hours
 
 // Creates an RSA priv/pub key pair, to be used to sign JWTs
-function genAndStoreKeys(genExpired = 1, database: Database.Database) {
+function genAndStoreKeys(isExpired: 'valid' | 'expired' = 'valid', database: Database.Database) {
 	const {publicKey, privateKey} = crypto.generateKeyPairSync('rsa', {
 		modulusLength: 2048,
 		privateKeyEncoding: {
@@ -19,6 +19,8 @@ function genAndStoreKeys(genExpired = 1, database: Database.Database) {
 			format: 'pem'
 		},
 	});
+
+	const genExpired = isExpired === 'valid' ? 1 : 0;
 
 	const kid = Date.now(); // timestamp for kid
 	const exp = Math.floor((Date.now() / 1000) + ((KEY_EXP * 3600) * genExpired)); // expiry set based on KEY_EXP and genExpired
@@ -29,12 +31,12 @@ function genAndStoreKeys(genExpired = 1, database: Database.Database) {
 	console.log(`Successfully generated key-pair with kid ${kid}`);
 };
 
-function loadKeys(database: Database.Database, expired: 'valid' | 'expired' = 'valid'):KeyRow[] {
+function loadKeys(isExpired: 'valid' | 'expired' = 'valid', database: Database.Database):KeyRow[] {
 	const currentTime = Math.floor((Date.now() / 1000));
 
 	let keys:KeyRow[];
 
-	if (expired === 'valid') {
+	if (isExpired === 'valid') {
 		keys = database.prepare<[number], KeyRow>('SELECT * FROM keys WHERE exp > ?').all(currentTime);
 	} else {
 		keys = database.prepare<[number], KeyRow>('SELECT * FROM keys WHERE exp < ?').all(currentTime);
