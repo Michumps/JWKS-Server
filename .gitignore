@@ -1,13 +1,20 @@
+## exclude node_modules
 node_modules/
 
-## exclude test client
-CSCE3550-1.0.0/
+## exclude screenshots
+screenshots/
 
-# ignore my database files; created on program run locally
+## exclude tests
+tests/
+
+## exclude testing directory
+CSCE3550/
+
+## exclude data directory created from JS version
 data/
 
-# preserve directory for structure, believe its created anyway but just to be safe
-!data/.gitkeep
-
-## exclude generated coverage directory
+## exclude coverage files generated from tests
 coverage/
+
+## exclude generate /dist directory
+/dist
